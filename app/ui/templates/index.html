@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manus-AI Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <img src="/static/images/logo.png" alt="Manus-AI Logo">
+                <h1>Manus-AI</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="/" class="active">Dashboard</a></li>
+                    <li><a href="/tasks">Tasks</a></li>
+                    <li><a href="/agents">Agents</a></li>
+                    <li><a href="/tools">Tools</a></li>
+                    <li><a href="/settings">Settings</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main>
+            <div class="dashboard-header">
+                <h1>Dashboard</h1>
+                <p>Welcome to Manus-AI - Your intelligent assistant for automating complex tasks</p>
+            </div>
+            
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <h3>Active Tasks</h3>
+                    <div class="stat">{{stats.active_tasks}}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed Tasks</h3>
+                    <div class="stat">{{stats.completed_tasks}}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Success Rate</h3>
+                    <div class="stat">{{stats.success_rate}}%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>System Status</h3>
+                    <div class="stat">{{stats.status}}</div>
+                </div>
+            </div>
+            
+            <div class="dashboard-sections">
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Create New Task</h2>
+                    </div>
+                    <div class="section-content">
+                        <form action="/tasks/new" method="post" class="task-form">
+                            <div class="form-group">
+                                <label for="description">Task Description</label>
+                                <textarea id="description" name="description" rows="4" placeholder="Describe your task in detail..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority" name="priority">
+                                    <option value="0">Low</option>
+                                    <option value="1" selected>Normal</option>
+                                    <option value="2">High</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="tags">Tags (comma separated)</label>
+                                <input type="text" id="tags" name="tags" placeholder="e.g., research, analysis, important">
+                            </div>
+                            <button type="submit" class="primary-button">Submit Task</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Recent Tasks</h2>
+                        <a href="/tasks" class="view-all">View All</a>
+                    </div>
+                    <div class="section-content">
+                        <div class="task-list">
+                            {% for task in recent_tasks %}
+                            <div class="task-item">
+                                <div class="task-info">
+                                    <h4><a href="/tasks/{{task.id}}">{{task.description}}</a></h4>
+                                    <div class="task-meta">
+                                        <span>Created: {{task.created_at}}</span>
+                                        <span>Priority: {{task.priority}}</span>
+                                    </div>
+                                </div>
+                                <div class="task-status {{task.metadata.status}}">{{task.metadata.status}}</div>
+                            </div>
+                            {% else %}
+                            <p class="empty-list">No tasks found</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 Manus-AI Project - v1.0.0</p>
+        </footer>
+    </div>
+</body>
+</html>

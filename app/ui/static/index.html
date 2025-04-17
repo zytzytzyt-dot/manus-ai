@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manus-AI</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="icon" href="static/images/favicon.ico">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <img src="static/images/logo.png" alt="Manus-AI Logo">
+                <h1>Manus-AI</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#" class="active" id="nav-dashboard">Dashboard</a></li>
+                    <li><a href="#" id="nav-tasks">Tasks</a></li>
+                    <li><a href="#" id="nav-agents">Agents</a></li>
+                    <li><a href="#" id="nav-tools">Tools</a></li>
+                    <li><a href="#" id="nav-settings">Settings</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main>
+            <div class="panel" id="dashboard-panel">
+                <h2>Dashboard</h2>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <h3>Active Tasks</h3>
+                        <div class="stat" id="stat-active-tasks">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Completed Tasks</h3>
+                        <div class="stat" id="stat-completed-tasks">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Success Rate</h3>
+                        <div class="stat" id="stat-success-rate">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>System Status</h3>
+                        <div class="stat" id="stat-system-status">Online</div>
+                    </div>
+                </div>
+                
+                <div class="task-create-panel">
+                    <h3>Create New Task</h3>
+                    <div class="task-input">
+                        <textarea id="task-description" placeholder="Enter task description..."></textarea>
+                        <button id="submit-task" class="primary-button">Submit Task</button>
+                    </div>
+                </div>
+                
+                <div class="recent-tasks">
+                    <h3>Recent Tasks</h3>
+                    <div id="recent-tasks-list" class="task-list">
+                        <!-- Tasks will be populated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel hidden" id="tasks-panel">
+                <h2>All Tasks</h2>
+                <div class="task-filters">
+                    <div class="filter">
+                        <label for="filter-status">Status:</label>
+                        <select id="filter-status">
+                            <option value="all">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="filter">
+                        <label for="filter-tag">Tag:</label>
+                        <input type="text" id="filter-tag" placeholder="Filter by tag">
+                    </div>
+                    <button id="apply-filters" class="secondary-button">Apply Filters</button>
+                </div>
+                
+                <div id="tasks-list" class="task-list full">
+                    <!-- Tasks will be populated here -->
+                </div>
+                
+                <div class="pagination">
+                    <button id="prev-page" class="secondary-button">Previous</button>
+                    <span id="page-info">Page 1 of 1</span>
+                    <button id="next-page" class="secondary-button">Next</button>
+                </div>
+            </div>
+            
+            <div class="panel hidden" id="agents-panel">
+                <h2>Agents</h2>
+                <div id="agents-list" class="agents-list">
+                    <!-- Agents will be populated here -->
+                </div>
+            </div>
+            
+            <div class="panel hidden" id="tools-panel">
+                <h2>Available Tools</h2>
+                <div id="tools-list" class="tools-list">
+                    <!-- Tools will be populated here -->
+                </div>
+            </div>
+            
+            <div class="panel hidden" id="settings-panel">
+                <h2>Settings</h2>
+                <div class="settings-form">
+                    <div class="setting-group">
+                        <h3>General Settings</h3>
+                        <div class="setting">
+                            <label for="setting-workspace">Workspace Directory:</label>
+                            <input type="text" id="setting-workspace" disabled>
+                        </div>
+                        <div class="setting">
+                            <label for="setting-debug">Debug Mode:</label>
+                            <input type="checkbox" id="setting-debug">
+                        </div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <h3>LLM Settings</h3>
+                        <div class="setting">
+                            <label for="setting-llm-model">Model:</label>
+                            <input type="text" id="setting-llm-model">
+                        </div>
+                        <div class="setting">
+                            <label for="setting-llm-temperature">Temperature:</label>
+                            <input type="number" id="setting-llm-temperature" min="0" max="2" step="0.1">
+                        </div>
+                    </div>
+                    
+                    <button id="save-settings" class="primary-button">Save Settings</button>
+                </div>
+            </div>
+            
+            <div class="panel hidden" id="task-detail-panel">
+                <div class="task-detail-header">
+                    <button id="back-to-tasks" class="secondary-button">Back to Tasks</button>
+                    <h2>Task Details</h2>
+                </div>
+                
+                <div class="task-info">
+                    <div class="task-description" id="detail-description"></div>
+                    <div class="task-metadata">
+                        <div class="metadata-item">
+                            <span class="label">Status:</span>
+                            <span class="value" id="detail-status"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Created:</span>
+                            <span class="value" id="detail-created"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Priority:</span>
+                            <span class="value" id="detail-priority"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Tags:</span>
+                            <span class="value" id="detail-tags"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="task-execution">
+                    <h3>Execution Steps</h3>
+                    <div id="execution-steps" class="execution-steps">
+                        <!-- Steps will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="task-results">
+                    <h3>Results</h3>
+                    <div id="task-results" class="task-result-content">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 Manus-AI Project - v1.0.0</p>
+        </footer>
+    </div>
+    
+    <script src="static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  manus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config
+      - ./workspace:/app/workspace
+      - ./logs:/app/logs
+    environment:
+      - MANUS_CONFIG_FILE=/app/config/config.toml
+      - MANUS_DEBUG=false
+    command: server --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+
+  sandbox:
+    image: python:3.9-slim
+    command: tail -f /dev/null
+    volumes:
+      - ./workspace:/workspace
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped

@@ -1,0 +1,88 @@
+from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
+from typing import List, Optional
+
+from pydantic import BaseModel, Field, model_validator
+
+from app.models.task import Task
+from app.memory.context import Context
+from app.models.result import Result
+from app.tools.tool_registry import ToolRegistry
+
+class BaseAgent(BaseModel, ABC):
+    """Abstract base class for all agents in the system.
+    
+    Provides the foundation for agent state management and execution flow.
+    """
+    name: str = Field(..., description="Unique name identifying the agent")
+    description: Optional[str] = Field(None, description="Agent description")
+    
+    # Core components
+    context: Context = Field(default_factory=Context)
+    tools: ToolRegistry = Field(default_factory=ToolRegistry)
+    
+    # Execution state
+    max_steps: int = Field(default=10, description="Maximum execution steps")
+    current_step: int = Field(default=0, description="Current execution step")
+    
+    class Config:
+        arbitrary_types_allowed = True
+    
+    @model_validator(mode="after")
+    def initialize_agent(self) -> "BaseAgent":
+        """Initialize agent components if not provided."""
+        if not isinstance(self.context, Context):
+            self.context = Context()
+        return self
+    
+    @asynccontextmanager
+    async def execution_context(self):
+        """Context manager for handling agent execution lifecycle."""
+        self.current_step = 0
+        try:
+            yield
+        except Exception as e:
+            self.context.add_error(f"Execution error: {str(e)}")
+            raise
+        finally:
+            # Cleanup resources
+            await self.cleanup()
+    
+    @abstractmethod
+    async def process(self, task: Task) -> Result:
+        """Process a task and return a result.
+        
+        Args:
+            task: The task to process
+            
+        Returns:
+            Result of task processing
+        """
+        pass
+    
+    @abstractmethod
+    async def step(self) -> bool:
+        """Execute a single step in the agent's workflow.
+        
+        Returns:
+            True if processing should continue, False if completed
+        """
+        pass
+    
+    async def run(self, task: Task) -> Result:
+        """Run the agent on a task.
+        
+        Args:
+            task: The task to execute
+            
+        Returns:
+            Result of the execution
+        """
+        async with self.execution_context():
+            result = await self.process(task)
+            return result
+    
+    async def cleanup(self):
+        """Clean up resources used by the agent."""
+        # Base implementation - override in subclasses
+        pass
