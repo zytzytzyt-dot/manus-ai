@@ -29,7 +29,7 @@ def get_logger(name: str, log_level: Optional[str] = None) -> logging.Logger:
     
     # Set log level
     settings = get_settings()
-    level = log_level or (logging.DEBUG if settings.debug else logging.INFO)
+    level = log_level or (logging.DEBUG if settings.ui.debug else logging.INFO)
     logger.setLevel(level)
     
     # Create formatter
@@ -43,7 +43,7 @@ def get_logger(name: str, log_level: Optional[str] = None) -> logging.Logger:
     logger.addHandler(console_handler)
     
     # Create file handler
-    log_dir = settings.log_dir
+    log_dir = settings.logging.file
     if not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
         
@@ -85,7 +85,7 @@ def configure_logging():
     root_logger.addHandler(console_handler)
     
     # Create file handler
-    log_dir = settings.log_dir
+    log_dir = settings.logging.file
     if not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
         
