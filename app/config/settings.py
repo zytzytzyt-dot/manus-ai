@@ -7,10 +7,6 @@ from pydantic import BaseModel, Field
 DEFAULT_CONFIG_PATH = "config/default.toml"
 
 class VMConfig(BaseModel):
-    """虚拟机配置
-    
-    将VMConfig从app.sandbox.vm移到这里，避免循环导入
-    """
     image: str = "manus-sandbox:latest"
     workspace_dir: str = "/workspace"
     timeout: int = 60

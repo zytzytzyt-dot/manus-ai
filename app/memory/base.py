@@ -153,3 +153,140 @@ class BaseMemory(BaseModel):
             Item count
         """
         return len(self.items)
+
+class Memory(BaseMemory):
+    """Memory implementation for agent system.
+    
+    Extends BaseMemory with additional functionality for the agent system.
+    """
+    
+    async def initialize(self):
+        """Initialize memory system.
+        
+        Creates necessary directories and loads existing memory if available.
+        
+        Returns:
+            True if initialization successful
+        """
+        import os
+        from app.config.settings import get_settings
+        
+        # 创建存储目录（如果不存在）
+        settings = get_settings()
+        storage_path = settings.memory.storage_path
+        os.makedirs(storage_path, exist_ok=True)
+        
+        # 尝试加载现有记忆
+        await self.load()
+        
+        return True
+    
+    async def load(self):
+        """Load memory from persistent storage.
+        
+        Returns:
+            True if memory loaded successfully, False otherwise
+        """
+        import os
+        import json
+        from app.config.settings import get_settings
+        
+        settings = get_settings()
+        storage_path = settings.memory.storage_path
+        file_path = os.path.join(storage_path, "memory.json")
+        
+        if not os.path.exists(file_path):
+            return False
+            
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+                
+            # 转换为内存项
+            for item_data in data:
+                self.add(item_data)
+                
+            return True
+        except Exception as e:
+            print(f"加载记忆失败: {str(e)}")
+            return False
+    
+    async def save(self):
+        """Save memory to persistent storage.
+        
+        Returns:
+            True if memory saved successfully, False otherwise
+        """
+        import os
+        import json
+        from app.config.settings import get_settings
+        
+        settings = get_settings()
+        storage_path = settings.memory.storage_path
+        file_path = os.path.join(storage_path, "memory.json")
+        
+        try:
+            # 转换为可序列化格式
+            data = [
+                {
+                    "id": item.id,
+                    "timestamp": item.timestamp,
+                    "type": item.type,
+                    "content": item.content if isinstance(item.content, (str, int, float, bool, list, dict)) else str(item.content),
+                    "metadata": item.metadata
+                }
+                for item in self.items
+            ]
+            
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2)
+                
+            return True
+        except Exception as e:
+            print(f"保存记忆失败: {str(e)}")
+            return False
+    
+    async def add_memory(self, content: Any, memory_type: str = "generic", metadata: Dict = None):
+        """Add a new memory item.
+        
+        Args:
+            content: Content to store
+            memory_type: Type of memory
+            metadata: Additional metadata
+            
+        Returns:
+            ID of added memory item
+        """
+        import time
+        import uuid
+        
+        item = {
+            "id": str(uuid.uuid4()),
+            "timestamp": time.time(),
+            "type": memory_type,
+            "content": content,
+            "metadata": metadata or {}
+        }
+        
+        return self.add(item)
+    
+    async def get_recent(self, limit: int = 10, memory_type: str = None):
+        """Get recent memory items.
+        
+        Args:
+            limit: Maximum items to return
+            memory_type: Optional type filter
+            
+        Returns:
+            List of recent memory items
+        """
+        items = self.items
+        
+        # 按类型过滤
+        if memory_type:
+            items = [item for item in items if item.type == memory_type]
+            
+        # 按时间戳排序
+        items.sort(key=lambda x: x.timestamp, reverse=True)
+        
+        return items[:limit]

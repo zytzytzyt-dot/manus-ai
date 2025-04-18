@@ -8,6 +8,7 @@ from app.models.task import Task
 from app.memory.context import Context
 from app.models.result import Result
 from app.tools.tool_registry import ToolRegistry
+from app.tools import get_tool_registry  # 添加这一行
 import uuid
 
 class BaseAgent(BaseModel, ABC):
@@ -18,13 +19,12 @@ class BaseAgent(BaseModel, ABC):
     
     # Core components
     context: Context = Field(default_factory=Context)
-    tools: ToolRegistry = Field(default_factory=ToolRegistry)
+    tools: ToolRegistry = Field(default_factory=get_tool_registry) 
     
     # Execution state
     max_steps: int = Field(default=10, description="Maximum execution steps")
     current_step: int = Field(default=0, description="Current execution step")
     
-    # 使用Pydantic v2兼容的配置
     model_config = {
         "arbitrary_types_allowed": True,
         "populate_by_name": True,

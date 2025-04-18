@@ -37,6 +37,18 @@ class ExecutorAgent(BaseAgent):
     
     max_tool_calls: int = Field(default=20, description="Maximum tool calls per execution")
     current_tool_calls: int = Field(default=0)
+
+    async def initialize(self):
+        """初始化执行代理
+        
+        确保代理使用全局工具注册表
+        """
+        from app.tools import get_tool_registry
+        
+        self.tools = get_tool_registry()
+        
+        return True
+
     
     async def process(self, task: Task) -> Result:
         """Process a task by executing it with tools.

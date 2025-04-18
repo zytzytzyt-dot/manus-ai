@@ -34,6 +34,17 @@ class PlannerAgent(BaseAgent):
     
     max_plan_steps: int = Field(default=10, description="Maximum steps in a plan")
     
+    async def initialize(self):
+        """初始化执行代理
+        
+        确保代理使用全局工具注册表
+        """
+        from app.tools import get_tool_registry
+        
+        self.tools = get_tool_registry()
+        
+        return True
+
     async def process(self, task: Task) -> Result:
         """Process a task by creating an execution plan.
         
