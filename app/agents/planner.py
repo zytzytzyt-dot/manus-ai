@@ -84,12 +84,13 @@ class PlannerAgent(BaseAgent):
         planning_prompt = self.planning_template.format(task=task.description)
         
         # Get planning response from LLM
-        response = await self.tools.get_tool("llm").execute({
-            "messages": [
+        response = await self.tools.get_tool("llm").execute(
+        prompt=planning_prompt,
+        messages=[
                 {"role": "system", "content": "You are a strategic planner for AI agents."},
-                {"role": "user", "content": planning_prompt}
+                {"role": "user",   "content": planning_prompt}
             ]
-        })
+        )
         
         # Parse response into structured plan
         plan_steps = self._parse_plan_steps(response.get("content", ""))

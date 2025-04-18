@@ -34,7 +34,7 @@ class ValidatorAgent(BaseAgent):
         Finally, provide an overall assessment and score (0-100).
         """
     )
-    
+
     async def initialize(self):
         """初始化执行代理
         
@@ -104,12 +104,13 @@ class ValidatorAgent(BaseAgent):
         )
         
         # Get validation response from LLM
-        response = await self.tools.get_tool("llm").execute({
-            "messages": [
-                {"role": "system", "content": "You are a critical validator that evaluates task execution quality."},
-                {"role": "user", "content": validation_prompt}
+        response = await self.tools.get_tool("llm").execute(
+        prompt=validation_prompt,
+        messages=[
+            {"role": "system", "content": "You are a critical validator that evaluates task execution quality."},
+            {"role": "user",   "content": validation_prompt}
             ]
-        })
+        )
         
         # Parse validation results
         validation_text = response.get("content", "")

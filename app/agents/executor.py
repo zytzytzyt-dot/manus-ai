@@ -141,10 +141,10 @@ class ExecutorAgent(BaseAgent):
         })
         
         # Get decision from LLM
-        response = await self.tools.get_tool("llm").execute({
-            "messages": messages
-        })
-        
+        response = await self.tools.get_tool("llm").execute(
+            prompt="",
+            messages=messages,
+        )
         return response
     
     def _extract_tool_call(self, decision_text: str) -> Optional[Dict[str, Any]]:
