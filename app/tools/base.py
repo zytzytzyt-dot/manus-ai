@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
-
+from typing import Any, Dict, Optional, ClassVar
 from pydantic import BaseModel, Field
-
 
 class BaseTool(BaseModel, ABC):
     """Base class for all tools in the system.
@@ -15,6 +13,7 @@ class BaseTool(BaseModel, ABC):
     
     class Config:
         arbitrary_types_allowed = True
+        extra = "allow"
     
     @abstractmethod
     async def execute(self, **kwargs) -> Any:

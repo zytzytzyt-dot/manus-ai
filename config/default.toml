@@ -1,0 +1,41 @@
+[llm]
+provider = "openai"
+model = "gpt-4o"
+api_key = "" 
+base_url = "https://api.openai.com/v1"
+temperature = 0.7
+max_tokens = 1000
+timeout = 30
+
+[sandbox]
+image = "manus-sandbox:latest"
+workspace_dir = "/workspace"
+timeout = 60
+memory_limit = "1g"
+cpu_limit = 1.0
+
+[tools]
+enabled = ["file", "browser", "code_execution", "llm", "search"]
+
+[memory]
+storage_path = "data/memory"
+max_history = 100
+ttl = 86400
+
+[logging]
+level = "INFO"
+file = "logs/manus.log"
+max_size = 10485760
+backup_count = 5
+
+[ui]
+port = 8000
+host = "0.0.0.0"
+debug = false
+static_dir = "app/ui/static"
+template_dir = "app/ui/templates"
+
+
+[search]
+api_key = "your_search_api_key_here"  
+engine = "google"  

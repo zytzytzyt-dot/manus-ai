@@ -1,6 +1,7 @@
 import json
 import aiohttp
-from typing import Dict, List, Optional, Any
+import os
+from typing import Dict, List, Optional, Any, ClassVar
 
 from app.tools.base import BaseTool, ToolResult
 from app.config.settings import get_settings
@@ -15,8 +16,8 @@ class SearchTool(BaseTool):
     Enables retrieval of information from the web via search engines
     and content extraction from search results.
     """
-    name: str = "search"
-    description: str = "Searches the web for information on a specific query"
+    name: ClassVar[str] = "search"
+    description: ClassVar[str] = "Searches the web for information on a specific query"
     parameters: Dict = {
         "type": "object",
         "properties": {
@@ -52,12 +53,29 @@ class SearchTool(BaseTool):
     search_api_key: str = ""
     search_endpoint: str = ""
     
-    def __init__(self, **data):
-        super().__init__(**data)
-        # Initialize API configuration from settings
+    def __init__(self):
+        super().__init__()
         settings = get_settings()
-        self.search_api_key = settings.search_api_key
-        self.search_endpoint = settings.search_endpoint
+        
+        # 尝试多种可能的配置路径
+        self.search_api_key = None
+        
+        # 直接从settings获取
+        if hasattr(settings, 'search_api_key'):
+            self.search_api_key = settings.search_api_key
+        # 从search配置部分获取
+        elif hasattr(settings, 'search') and hasattr(settings.search, 'api_key'):
+            self.search_api_key = settings.search.api_key
+        # 从环境变量获取
+        elif 'SEARCH_API_KEY' in os.environ:
+            self.search_api_key = os.environ['SEARCH_API_KEY']
+        # 使用LLM API密钥作为后备
+        elif hasattr(settings, 'llm') and hasattr(settings.llm, 'api_key'):
+            self.search_api_key = settings.llm.api_key
+        
+        # 如果仍然没有API密钥，记录警告
+        if not self.search_api_key:
+            logger.warning("未找到搜索API密钥，搜索功能可能不可用")
     
     async def execute(self, **kwargs) -> ToolResult:
         """Execute a web search.

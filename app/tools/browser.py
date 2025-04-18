@@ -3,6 +3,7 @@ import base64
 import json
 import os
 from typing import Dict, List, Optional, Union
+from typing import ClassVar
 
 from pydantic import Field
 
@@ -19,8 +20,8 @@ class BrowserTool(BaseTool):
     Provides capabilities for navigating web pages, interacting with elements,
     extracting content, and searching the web.
     """
-    name: str = "browser"
-    description: str = "Automates browser interactions to navigate websites, fill forms, and extract content"
+    name: ClassVar[str] = "browser"
+    description: ClassVar[str] = "Automates browser interactions to navigate websites, fill forms, and extract content"
     parameters: Dict = {
         "type": "object",
         "properties": {
@@ -67,8 +68,8 @@ class BrowserTool(BaseTool):
     }
     
     # Browser state
-    browser: Optional[Any] = Field(default=None, exclude=True)
-    page: Optional[Any] = Field(default=None, exclude=True)
+    browser: Optional[any] = Field(default=None, exclude=True)
+    page: Optional[any] = Field(default=None, exclude=True)
     browser_lock: asyncio.Lock = Field(default_factory=asyncio.Lock)
     
     async def execute(self, **kwargs) -> ToolResult:

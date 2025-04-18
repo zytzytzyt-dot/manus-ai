@@ -7,9 +7,12 @@ from typing import Dict, List, Optional, Union
 from pydantic import BaseModel
 
 from app.config.settings import get_settings
-from app.sandbox.vm import VirtualMachine, VMConfig
+from app.sandbox.vm import SandboxVM as VirtualMachine
+from app.config.settings import VMConfig
 from app.sandbox.security import SecurityManager, SecurityPolicy
 from app.utils.logger import get_logger
+
+
 
 # Set up logger
 logger = get_logger(__name__)

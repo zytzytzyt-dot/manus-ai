@@ -1,7 +1,7 @@
 import os
 import json
 import base64
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, ClassVar
 
 from pydantic import Field
 
@@ -18,8 +18,8 @@ class FileOperationsTool(BaseTool):
     Provides capabilities for reading, writing, listing, and managing files
     within the workspace directory.
     """
-    name: str = "file_operations"
-    description: str = "Performs file operations (read, write, list, etc.) in the workspace"
+    name: ClassVar[str] = "file_operations"
+    description: ClassVar[str] = "Performs file operations (read, write, list, etc.) in the workspace"
     parameters: Dict = {
         "type": "object",
         "properties": {

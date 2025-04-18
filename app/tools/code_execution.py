@@ -2,7 +2,8 @@ import asyncio
 import os
 import uuid
 import tempfile
-from typing import Dict, Optional
+from typing import Dict, Optional, ClassVar
+
 
 from pydantic import Field
 
@@ -19,8 +20,8 @@ class CodeExecutionTool(BaseTool):
     Supports execution of Python code with safety restrictions
     and resource limits.
     """
-    name: str = "code_execution"
-    description: str = "Executes code in a secure sandboxed environment"
+    name: ClassVar[str] = "code_execution"
+    description: ClassVar[str] = "Executes code in a secure sandboxed environment"
     parameters: Dict = {
         "type": "object",
         "properties": {

@@ -59,18 +59,22 @@ class AgentRegistry(BaseModel):
         """
         return list(self.agents.values())
 
+from typing import Dict, List, Optional, Any, ClassVar
+from pydantic import BaseModel, Field
+
 class OrchestratorAgent(BaseAgent):
-    """Agent responsible for coordinating the multi-agent system.
+    """Agent responsible for coordinating the multi-agent system."""
     
-    Manages the workflow between different specialized agents to complete
-    complex tasks through planning, execution, and validation phases.
-    """
-    name: str = "OrchestratorAgent"
-    description: str = "Coordinates the multi-agent system workflow"
+    name: ClassVar[str] = "OrchestratorAgent"
+    description: ClassVar[str] = "Coordinates the multi-agent system workflow"
     
     # Orchestrator-specific attributes
     agent_registry: AgentRegistry = Field(default_factory=AgentRegistry)
     task_storage: Dict[str, Any] = Field(default_factory=dict)
+    
+    planner: Optional["PlannerAgent"] = Field(default=None)
+    executor: Optional["ExecutorAgent"] = Field(default=None)
+    validator: Optional["ValidatorAgent"] = Field(default=None)
     
     def __init__(self, **data):
         super().__init__(**data)
@@ -79,9 +83,31 @@ class OrchestratorAgent(BaseAgent):
     
     def _register_default_agents(self) -> None:
         """Register the default set of agents."""
-        self.agent_registry.register(PlannerAgent())
-        self.agent_registry.register(ExecutorAgent())
-        self.agent_registry.register(ValidatorAgent())
+        self.planner = PlannerAgent()
+        self.executor = ExecutorAgent()
+        self.validator = ValidatorAgent()
+        
+        self.agent_registry.register(self.planner)
+        self.agent_registry.register(self.executor)
+        self.agent_registry.register(self.validator)
+
+    async def initialize(self):
+
+        from app.memory.base import Memory
+        
+        self.memory = Memory()
+        await self.memory.initialize()
+        
+        if hasattr(self.planner, 'initialize') and callable(self.planner.initialize):
+            await self.planner.initialize()
+        
+        if hasattr(self.executor, 'initialize') and callable(self.executor.initialize):
+            await self.executor.initialize()
+        
+        if hasattr(self.validator, 'initialize') and callable(self.validator.initialize):
+            await self.validator.initialize()
+        
+        return True
     
     async def process(self, task: Task) -> Result:
         """Process a task using the multi-agent orchestration workflow.
@@ -299,3 +325,12 @@ class OrchestratorAgent(BaseAgent):
             metadata=metadata or {},
             status="error"
         )
+    async def process_task(self, task_description: str) -> str:
+        task = Task(
+            id=str(uuid.uuid4()),
+            description=task_description
+        )
+        
+        result = await self.process(task)
+        
+        return result.content

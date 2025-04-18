@@ -8,12 +8,11 @@ from app.models.task import Task
 from app.memory.context import Context
 from app.models.result import Result
 from app.tools.tool_registry import ToolRegistry
+import uuid
 
 class BaseAgent(BaseModel, ABC):
-    """Abstract base class for all agents in the system.
+    """Abstract base class for all agents in the system."""
     
-    Provides the foundation for agent state management and execution flow.
-    """
     name: str = Field(..., description="Unique name identifying the agent")
     description: Optional[str] = Field(None, description="Agent description")
     
@@ -25,8 +24,12 @@ class BaseAgent(BaseModel, ABC):
     max_steps: int = Field(default=10, description="Maximum execution steps")
     current_step: int = Field(default=0, description="Current execution step")
     
-    class Config:
-        arbitrary_types_allowed = True
+    # 使用Pydantic v2兼容的配置
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "populate_by_name": True,
+        "extra": "allow"
+    }
     
     @model_validator(mode="after")
     def initialize_agent(self) -> "BaseAgent":
@@ -86,3 +89,16 @@ class BaseAgent(BaseModel, ABC):
         """Clean up resources used by the agent."""
         # Base implementation - override in subclasses
         pass
+
+    async def process_task(self, task_description: str) -> str:
+        # 创建任务对象
+        task = Task(
+            id=str(uuid.uuid4()),
+            description=task_description
+        )
+        
+        # 使用process方法处理任务
+        result = await self.process(task)
+        
+        # 返回结果内容
+        return result.content
