@@ -1,144 +1,169 @@
 import os
-from typing import Dict, List, Optional, Any
 import tomli
-
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
-from app.sandbox.vm import VMConfig
+# 配置文件路径
+DEFAULT_CONFIG_PATH = "config/default.toml"
 
+class VMConfig(BaseModel):
+    """虚拟机配置
+    
+    将VMConfig从app.sandbox.vm移到这里，避免循环导入
+    """
+    image: str = "manus-sandbox:latest"
+    workspace_dir: str = "/workspace"
+    timeout: int = 60
+    memory_limit: str = "1g"
+    cpu_limit: float = 1.0
+
+class ToolConfig(BaseModel):
+    """工具配置"""
+    enabled: List[str] = Field(default_factory=lambda: ["file", "browser", "code", "search"])
 
 class LLMConfig(BaseModel):
-    """LLM configuration."""
-    
-    model: str = Field(default="gpt-4o", description="Model name")
-    base_url: str = Field(default="https://api.openai.com/v1", description="API base URL")
-    api_key: Optional[str] = Field(None, description="API key")
-    max_tokens: int = Field(default=4096, description="Maximum tokens")
-    temperature: float = Field(default=0.0, description="Temperature")
+    """LLM配置"""
+    provider: str = "openai"
+    model: str = "gpt-4"
+    api_key: str = ""
+    temperature: float = 0.7
+    max_tokens: int = 1000
+    timeout: int = 30
 
+class MemoryConfig(BaseModel):
+    """记忆系统配置"""
+    storage_path: str = "data/memory"
+    max_history: int = 100
+    ttl: int = 86400  # 24小时
 
-class BrowserConfig(BaseModel):
-    """Browser configuration."""
-    
-    browser_type: str = Field(default="chromium", description="Browser type")
-    headless: bool = Field(default=True, description="Whether to run in headless mode")
-    disable_security: bool = Field(default=True, description="Whether to disable security features")
-    max_content_length: int = Field(default=10000, description="Maximum content length")
-    extra_chromium_args: List[str] = Field(default_factory=list, description="Extra Chromium args")
-    chrome_instance_path: Optional[str] = Field(None, description="Chrome instance path")
+class LoggingConfig(BaseModel):
+    """日志配置"""
+    level: str = "INFO"
+    file: str = "logs/manus.log"
+    max_size: int = 10485760  # 10MB
+    backup_count: int = 5
 
-
-class ProxyConfig(BaseModel):
-    """Proxy configuration."""
-    
-    server: Optional[str] = Field(None, description="Proxy server URL")
-    username: Optional[str] = Field(None, description="Proxy username")
-    password: Optional[str] = Field(None, description="Proxy password")
-
+class UIConfig(BaseModel):
+    """UI配置"""
+    port: int = 8000
+    host: str = "0.0.0.0"
+    debug: bool = False
+    static_dir: str = "app/ui/static"
+    template_dir: str = "app/ui/templates"
 
 class Settings(BaseModel):
-    """Application settings."""
+    """应用程序设置
     
-    # Path configuration
-    workspace_dir: str = Field(default="./workspace", description="Workspace directory")
-    log_dir: str = Field(default="./logs", description="Log directory")
-    
-    # LLM configuration
-    llm: LLMConfig = Field(default_factory=LLMConfig, description="LLM configuration")
-    
-    # Vision LLM configuration (for image processing)
-    vision_llm: Optional[LLMConfig] = Field(None, description="Vision LLM configuration")
-    
-    # Browser configuration
-    browser: BrowserConfig = Field(default_factory=BrowserConfig, description="Browser configuration")
-    browser_proxy: Optional[ProxyConfig] = Field(None, description="Browser proxy configuration")
-    
-    # Sandbox configuration
-    sandbox: VMConfig = Field(default_factory=VMConfig, description="Sandbox configuration")
-    
-    # Search configuration
-    search_api_key: Optional[str] = Field(None, description="Search API key")
-    search_endpoint: Optional[str] = Field(None, description="Search API endpoint")
-    
-    # Agent configuration
-    max_agent_steps: int = Field(default=20, description="Maximum agent steps")
-    max_agent_execution_time: int = Field(default=300, description="Maximum agent execution time (seconds)")
-    
-    # Async configuration
-    worker_count: int = Field(default=2, description="Number of background workers")
-    
-    # Other settings
-    debug: bool = Field(default=False, description="Debug mode")
-    cache_enabled: bool = Field(default=True, description="Whether to use cache")
-
-
-_settings_instance = None
-
-def load_settings() -> Settings:
-    """Load settings from config file and environment variables.
-    
-    Returns:
-        Settings instance
+    包含所有配置项的主类
     """
-    # Default config file path
-    config_file = os.environ.get("MANUS_CONFIG_FILE", "config/config.toml")
+    workspace_dir: str = "workspace"
+    temp_dir: str = "temp"
     
-    settings_dict = {}
+    llm: LLMConfig = LLMConfig()
+    tools: ToolConfig = ToolConfig()
+    memory: MemoryConfig = MemoryConfig()
+    logging: LoggingConfig = LoggingConfig()
+    ui: UIConfig = UIConfig()
+    sandbox: VMConfig = VMConfig()  # 使用本地定义的VMConfig
     
-    # Load from config file if it exists
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, "rb") as f:
-                config_data = tomli.load(f)
-                settings_dict.update(config_data)
-        except Exception as e:
-            print(f"Error loading config file: {str(e)}")
-    
-    # Override with environment variables
-    
-    # LLM settings
-    llm_model = os.environ.get("MANUS_LLM_MODEL")
-    if llm_model:
-        if "llm" not in settings_dict:
-            settings_dict["llm"] = {}
-        settings_dict["llm"]["model"] = llm_model
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Settings":
+        """从字典创建设置
         
-    llm_api_key = os.environ.get("MANUS_LLM_API_KEY")
-    if llm_api_key:
-        if "llm" not in settings_dict:
-            settings_dict["llm"] = {}
-        settings_dict["llm"]["api_key"] = llm_api_key
+        Args:
+            data: 配置字典
+            
+        Returns:
+            Settings实例
+        """
+        settings = Settings()
         
-    llm_base_url = os.environ.get("MANUS_LLM_BASE_URL")
-    if llm_base_url:
-        if "llm" not in settings_dict:
-            settings_dict["llm"] = {}
-        settings_dict["llm"]["base_url"] = llm_base_url
+        # 更新顶级设置
+        if "workspace_dir" in data:
+            settings.workspace_dir = data["workspace_dir"]
+        if "temp_dir" in data:
+            settings.temp_dir = data["temp_dir"]
+            
+        # 更新LLM设置
+        if "llm" in data:
+            settings.llm = LLMConfig(**data["llm"])
+            
+        # 更新工具设置
+        if "tools" in data:
+            settings.tools = ToolConfig(**data["tools"])
+            
+        # 更新记忆设置
+        if "memory" in data:
+            settings.memory = MemoryConfig(**data["memory"])
+            
+        # 更新日志设置
+        if "logging" in data:
+            settings.logging = LoggingConfig(**data["logging"])
+            
+        # 更新UI设置
+        if "ui" in data:
+            settings.ui = UIConfig(**data["ui"])
+            
+        # 更新沙盒设置
+        if "sandbox" in data:
+            settings.sandbox = VMConfig(**data["sandbox"])
+            
+        return settings
+
+# 全局设置实例
+_settings: Optional[Settings] = None
+
+def load_settings(config_path: Optional[str] = None) -> Settings:
+    """加载设置
     
-    # Path settings
-    workspace_dir = os.environ.get("MANUS_WORKSPACE_DIR")
-    if workspace_dir:
-        settings_dict["workspace_dir"] = workspace_dir
+    Args:
+        config_path: 配置文件路径，如果未提供则使用环境变量或默认路径
         
-    log_dir = os.environ.get("MANUS_LOG_DIR")
-    if log_dir:
-        settings_dict["log_dir"] = log_dir
+    Returns:
+        Settings实例
+        
+    Raises:
+        FileNotFoundError: 如果配置文件不存在
+        tomli.TOMLDecodeError: 如果配置文件格式无效
+    """
+    global _settings
     
-    # Debug mode
-    debug = os.environ.get("MANUS_DEBUG")
-    if debug:
-        settings_dict["debug"] = debug.lower() in ("true", "1", "yes")
+    # 确定配置文件路径
+    if config_path is None:
+        config_path = os.environ.get("CONFIG_FILE", DEFAULT_CONFIG_PATH)
+        
+    # 检查文件是否存在
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"配置文件不存在: {config_path}")
+        
+    # 读取配置文件
+    with open(config_path, "rb") as f:
+        config_data = tomli.load(f)
+        
+    # 创建设置
+    _settings = Settings.from_dict(config_data)
     
-    # Create settings instance
-    return Settings(**settings_dict)
+    # 从环境变量覆盖LLM API密钥
+    if "LLM_API_KEY" in os.environ:
+        _settings.llm.api_key = os.environ["LLM_API_KEY"]
+        
+    return _settings
 
 def get_settings() -> Settings:
-    """Get settings instance (singleton).
+    """获取设置
+    
+    如果设置尚未加载，则使用默认路径加载
     
     Returns:
-        Settings instance
+        Settings实例
     """
-    global _settings_instance
-    if _settings_instance is None:
-        _settings_instance = load_settings()
-    return _settings_instance
+    global _settings
+    
+    if _settings is None:
+        try:
+            _settings = load_settings()
+        except (FileNotFoundError, tomli.TOMLDecodeError):
+            # 如果加载失败，使用默认设置
+            _settings = Settings()
+            
+    return _settings

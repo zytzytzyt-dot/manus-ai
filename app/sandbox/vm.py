@@ -1,144 +1,99 @@
-import asyncio
 import os
+import docker
 import shutil
 import tempfile
-import uuid
-from typing import Dict, List, Optional
-
-from pydantic import BaseModel, Field
-
-from app.config.settings import get_settings
+import asyncio
+from typing import Optional, Dict, Any
 from app.utils.logger import get_logger
 
-# Set up logger
+# 设置日志记录器
 logger = get_logger(__name__)
 
-class VMConfig(BaseModel):
-    """Configuration for a virtual machine sandbox."""
+class SandboxVM:
+    """沙盒虚拟机实现
     
-    memory_limit: str = Field(default="256m", description="Memory limit")
-    cpu_limit: float = Field(default=0.5, description="CPU limit (cores)")
-    disk_limit: str = Field(default="1g", description="Disk space limit")
-    network_enabled: bool = Field(default=False, description="Whether networking is enabled")
-    workspace_dir: str = Field(default="/workspace", description="VM workspace directory")
-    timeout: int = Field(default=30, description="Default execution timeout")
-    
-    class Config:
-        validate_assignment = True
-
-
-class VirtualMachine:
-    """Manages virtual machine sandboxes for code execution.
-    
-    Provides isolated execution environments with resource limits
-    and security measures.
+    提供一个隔离的环境来执行不受信任的代码，
+    基于Docker容器实现。
     """
-    def __init__(self, config: Optional[VMConfig] = None):
-        """Initialize virtual machine.
+    
+    def __init__(self, config=None):
+        """初始化沙盒VM
         
         Args:
-            config: VM configuration
+            config: 可选的VM配置，如果未提供则从全局设置加载
         """
-        self.config = config or VMConfig()
-        self.container_id: Optional[str] = None
-        self.temp_dir: Optional[str] = None
+        # 延迟导入，避免循环依赖
+        if config is None:
+            from app.config.settings import get_settings
+            self.config = get_settings().sandbox
+        else:
+            self.config = config
+            
+        self.container_id = None
+        self.temp_dir = None
         self._container_client = None
         
-    async def create(self) -> str:
-        """Create and start a new VM instance.
+    async def create(self) -> None:
+        """创建沙盒VM
         
-        Returns:
-            Container ID
-            
+        创建一个Docker容器作为沙盒环境
+        
         Raises:
-            RuntimeError: If VM creation fails
+            RuntimeError: 如果创建失败
         """
         try:
-            # Create temporary directory for VM files
-            self.temp_dir = tempfile.mkdtemp(prefix="vm_")
-            
-            # Import Docker here to avoid dependency if not used
-            try:
-                import docker
-                from docker.errors import DockerException
-            except ImportError:
-                raise RuntimeError("Docker SDK not installed. Install with: pip install docker")
-            
-            # Initialize Docker client
+            # 创建Docker客户端
             self._container_client = docker.from_env()
             
-            # Get settings
-            settings = get_settings()
+            # 创建临时目录作为工作空间
+            self.temp_dir = tempfile.mkdtemp()
+            logger.debug(f"创建临时目录: {self.temp_dir}")
             
-            # Prepare container configuration
-            container_name = f"manus_vm_{uuid.uuid4().hex[:8]}"
-            image = settings.sandbox.image or "python:3.9-slim"
-            
-            # Prepare host config
-            host_config = {
-                "mem_limit": self.config.memory_limit,
-                "cpu_period": 100000,
-                "cpu_quota": int(100000 * self.config.cpu_limit),
-                "network_mode": "none" if not self.config.network_enabled else "bridge",
-                "binds": {
+            # 创建容器
+            container = self._container_client.containers.run(
+                self.config.image,
+                detach=True,
+                remove=True,
+                volumes={
                     self.temp_dir: {
-                        "bind": self.config.workspace_dir,
-                        "mode": "rw"
+                        'bind': self.config.workspace_dir,
+                        'mode': 'rw'
                     }
                 }
-            }
-            
-            # Create container
-            container = self._container_client.containers.create(
-                image=image,
-                command="tail -f /dev/null",  # Keep container running
-                hostname="sandbox",
-                working_dir=self.config.workspace_dir,
-                name=container_name,
-                detach=True,
-                tty=True,
-                **host_config
             )
             
-            # Start container
-            container.start()
-            
-            # Store container ID
             self.container_id = container.id
-            
-            logger.info(f"Created VM container: {container_name} ({self.container_id})")
-            
-            return self.container_id
+            logger.info(f"创建VM容器: {self.container_id}")
             
         except Exception as e:
-            # Clean up on failure
+            error_msg = f"创建VM失败: {str(e)}"
+            logger.error(error_msg)
+            
+            # 清理资源
             await self.cleanup()
             
-            error_msg = f"Failed to create VM: {str(e)}"
-            logger.error(error_msg)
             raise RuntimeError(error_msg)
     
-    async def run_command(self, command: str, timeout: Optional[int] = None) -> str:
-        """Run a command in the VM.
+    async def run_command(self, command: str) -> str:
+        """在VM中运行命令
         
         Args:
-            command: Command to execute
-            timeout: Execution timeout
+            command: 要执行的命令
             
         Returns:
-            Command output
+            命令输出
             
         Raises:
-            RuntimeError: If command execution fails
+            RuntimeError: 如果命令执行失败
         """
         if not self.container_id or not self._container_client:
-            raise RuntimeError("VM not initialized")
+            raise RuntimeError("VM未初始化")
             
         try:
-            # Get container
+            # 获取容器
             container = self._container_client.containers.get(self.container_id)
             
-            # Execute command
+            # 执行命令
             exec_result = container.exec_run(
                 command,
                 workdir=self.config.workspace_dir,
@@ -148,127 +103,127 @@ class VirtualMachine:
                 stderr=True
             )
             
-            # Get command output
+            # 获取命令输出
             exit_code = exec_result.exit_code
             output = exec_result.output.decode('utf-8', errors='replace')
             
             if exit_code != 0:
-                logger.warning(f"Command exited with non-zero code: {exit_code}")
-                logger.warning(f"Output: {output}")
+                logger.warning(f"命令退出码非零: {exit_code}")
+                logger.warning(f"输出: {output}")
                 
             return output
             
         except Exception as e:
-            error_msg = f"Failed to run command: {str(e)}"
+            error_msg = f"运行命令失败: {str(e)}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
     
     async def copy_to_vm(self, local_path: str, vm_path: str) -> None:
-        """Copy a file from host to VM.
+        """从主机复制文件到VM
         
         Args:
-            local_path: Local file path
-            vm_path: Target path in VM
+            local_path: 本地文件路径
+            vm_path: VM中的目标路径
             
         Raises:
-            RuntimeError: If copy operation fails
+            RuntimeError: 如果复制操作失败
         """
         if not self.container_id or not self._container_client:
-            raise RuntimeError("VM not initialized")
+            raise RuntimeError("VM未初始化")
             
         try:
-            # Get container
+            # 获取容器
             container = self._container_client.containers.get(self.container_id)
             
-            # Resolve VM path
+            # 解析VM路径
             full_vm_path = os.path.join(self.config.workspace_dir, vm_path.lstrip('/'))
             
-            # Ensure local file exists
+            # 确保本地文件存在
             if not os.path.exists(local_path):
-                raise RuntimeError(f"Local file not found: {local_path}")
+                raise RuntimeError(f"本地文件不存在: {local_path}")
                 
-            # Create target directory
+            # 创建目标目录
             await self.run_command(f"mkdir -p $(dirname {full_vm_path})")
             
-            # Copy file to container
+            # 复制文件到容器
             with open(local_path, 'rb') as f:
                 data = f.read()
                 container.put_archive(os.path.dirname(full_vm_path), data)
                 
-            logger.debug(f"Copied {local_path} to VM at {full_vm_path}")
+            logger.debug(f"复制 {local_path} 到VM的 {full_vm_path}")
             
         except Exception as e:
-            error_msg = f"Failed to copy file to VM: {str(e)}"
+            error_msg = f"复制文件到VM失败: {str(e)}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
     
     async def copy_from_vm(self, vm_path: str, local_path: str) -> None:
-        """Copy a file from VM to host.
+        """从VM复制文件到主机
         
         Args:
-            vm_path: Source path in VM
-            local_path: Target local file path
+            vm_path: VM中的源路径
+            local_path: 本地目标文件路径
             
         Raises:
-            RuntimeError: If copy operation fails
+            RuntimeError: 如果复制操作失败
         """
         if not self.container_id or not self._container_client:
-            raise RuntimeError("VM not initialized")
+            raise RuntimeError("VM未初始化")
             
         try:
-            # Get container
+            # 获取容器
             container = self._container_client.containers.get(self.container_id)
             
-            # Resolve VM path
+            # 解析VM路径
             full_vm_path = os.path.join(self.config.workspace_dir, vm_path.lstrip('/'))
             
-            # Create target directory
+            # 创建目标目录
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             
-            # Get file from container
+            # 从容器获取文件
             bits, stat = container.get_archive(full_vm_path)
             
-            # Write bits to file
+            # 写入文件
             with open(local_path, 'wb') as f:
                 for chunk in bits:
                     f.write(chunk)
                     
-            logger.debug(f"Copied {full_vm_path} from VM to {local_path}")
+            logger.debug(f"复制VM的 {full_vm_path} 到 {local_path}")
             
         except Exception as e:
-            error_msg = f"Failed to copy file from VM: {str(e)}"
+            error_msg = f"从VM复制文件失败: {str(e)}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
     
     async def cleanup(self) -> None:
-        """Clean up VM resources."""
-        # Stop and remove container
+        """清理VM资源"""
+        # 停止并移除容器
         if self.container_id and self._container_client:
             try:
                 container = self._container_client.containers.get(self.container_id)
                 container.stop(timeout=5)
                 container.remove(force=True)
-                logger.info(f"Removed VM container: {self.container_id}")
+                logger.info(f"移除VM容器: {self.container_id}")
             except Exception as e:
-                logger.error(f"Error cleaning up VM container: {str(e)}")
+                logger.error(f"清理VM容器时出错: {str(e)}")
             finally:
                 self.container_id = None
                 
-        # Remove temporary directory
+        # 移除临时目录
         if self.temp_dir and os.path.exists(self.temp_dir):
             try:
                 shutil.rmtree(self.temp_dir)
-                logger.debug(f"Removed VM temp directory: {self.temp_dir}")
+                logger.debug(f"移除VM临时目录: {self.temp_dir}")
             except Exception as e:
-                logger.error(f"Error removing VM temp directory: {str(e)}")
+                logger.error(f"移除VM临时目录时出错: {str(e)}")
             finally:
                 self.temp_dir = None
     
     async def __aenter__(self):
-        """Async context manager entry."""
+        """异步上下文管理器入口"""
         await self.create()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
+        """异步上下文管理器退出"""
         await self.cleanup()

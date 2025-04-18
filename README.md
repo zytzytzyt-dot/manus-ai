@@ -23,5 +23,5 @@ A multi-agent AI system for automating complex tasks through collaboration betwe
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/manus-ai.git
+git clone https://github.com/zytzytzyt-dot/manus-ai.git
 cd manus-ai
